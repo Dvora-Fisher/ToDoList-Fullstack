@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const apiUrl = "http://localhost:5101/"
+const apiUrl = process.env.REACT_APP_API_URL;
 axios.defaults.baseURL = apiUrl
 
 // add the JWT token (if exists) to every request
