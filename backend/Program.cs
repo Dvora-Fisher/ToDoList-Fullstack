@@ -9,10 +9,20 @@ using TodoApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// the free Clever Cloud MySQL allows only 5 connections per user, so keep the pool small
+// (leaves room for the old instance during a Render deploy) and release idle connections quickly
+var connectionString = new MySqlConnector.MySqlConnectionStringBuilder(
+    builder.Configuration.GetConnectionString("ToDoDB")
+        ?? throw new InvalidOperationException("ConnectionStrings:ToDoDB is missing."))
+{
+    MaximumPoolSize = 2,
+    ConnectionIdleTimeout = 30
+}.ConnectionString;
+// fixed version instead of AutoDetect, which opened an extra DB connection every time a DbContext was created
+var serverVersion = new MySqlServerVersion(new Version(8, 0));
+
 builder.Services.AddDbContext<ToDoDbContext>(options =>
-    options.UseMySql(
-        builder.Configuration.GetConnectionString("ToDoDB"),
-        ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("ToDoDB"))));
+    options.UseMySql(connectionString, serverVersion));
 
 builder.Services.AddCors(options =>
 {
@@ -24,7 +34,11 @@ builder.Services.AddCors(options =>
 
 // JWT authentication
 var jwt = builder.Configuration.GetSection("Jwt");
-var jwtKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Key"]!));
+// the key is a secret: it comes from user-secrets locally and from the Jwt__Key env var on Render, never from appsettings.json
+var jwtKeyText = jwt["Key"];
+if (string.IsNullOrWhiteSpace(jwtKeyText) || jwtKeyText.Length < 32)
+    throw new InvalidOperationException("Jwt:Key is missing or shorter than 32 characters. Set it with 'dotnet user-secrets set Jwt:Key <value>' locally, or the Jwt__Key environment variable on the server.");
+var jwtKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKeyText));
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
