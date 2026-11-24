@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import service from './service.js';
 import Auth from './Auth.js';
+import { Brand, CheckIcon, TrashIcon } from './ui.js';
 
 function App() {
   const [loggedIn, setLoggedIn] = useState(service.isLoggedIn());
@@ -14,12 +15,13 @@ function App() {
 
   async function createTodo(e) {
     e.preventDefault();
-    await service.addTask(newTodo);
+    if (!newTodo.trim()) return;
+    await service.addTask(newTodo.trim());
     setNewTodo("");//clear input
     await getTodos();//refresh tasks list (in order to see the new one)
   }
 
-  async function updateCompleted(todo, isComplete) {
+  async function updateCompleted(todo) {
     await service.setCompleted(todo.id);
     await getTodos();//refresh tasks list (in order to see the updated one)
   }
@@ -43,33 +45,53 @@ function App() {
   if (!loggedIn)
     return <Auth onLogin={() => setLoggedIn(true)} />;
 
+  const doneCount = todos.filter(t => t.isComplete).length;
+  const percent = todos.length ? Math.round(doneCount / todos.length * 100) : 0;
+  const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+
   return (
-    <section className="todoapp">
-      <header className="header">
-        <h1>todos</h1>
-        <form onSubmit={createTodo}>
-          <input className="new-todo" placeholder="Well, let's take on the day" value={newTodo} onChange={(e) => setNewTodo(e.target.value)} />
-        </form>
-      </header>
-      <section className="main" style={{ display: "block" }}>
-        <ul className="todo-list">
-          {todos.map(todo => {
-            return (
-              <li className={todo.isComplete ? "completed" : ""} key={todo.id}>
-                <div className="view">
-                  <input className="toggle" type="checkbox" defaultChecked={todo.isComplete} onChange={(e) => updateCompleted(todo, e.target.checked)} />
-                  <label>{todo.name}</label>
-                  <button className="destroy" onClick={() => deleteTodo(todo.id)}></button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+    <main className="shell">
+      <div className="topbar">
+        <Brand />
+        <button className="btn-ghost" onClick={logout}>Log out</button>
+      </div>
+
+      <section className="hero">
+        <h1>My tasks</h1>
+        <p>{today} · {todos.length ? `${doneCount} of ${todos.length} done` : "Nothing planned yet"}</p>
       </section>
-      <footer className="footer" style={{ display: "block", textAlign: "center" }}>
-        <button onClick={logout} style={{ position: "relative", zIndex: 1, cursor: "pointer" }}>Log out</button>
-      </footer>
-    </section >
+
+      <div className="progress" aria-hidden="true"><div style={{ width: `${percent}%` }} /></div>
+
+      <section className="card">
+        <form className="new-task" onSubmit={createTodo}>
+          <input className="input" placeholder="Add a task and press Enter…" value={newTodo}
+            onChange={(e) => setNewTodo(e.target.value)} autoFocus />
+          <button className="btn-add" type="submit" disabled={!newTodo.trim()}>Add</button>
+        </form>
+
+        {todos.length === 0 ? (
+          <div className="empty">
+            <div className="empty-icon"><CheckIcon size={26} /></div>
+            <strong>You're all clear</strong>
+            Add your first task above to get started.
+          </div>
+        ) : (
+          <ul className="task-list">
+            {todos.map(todo => (
+              <li className={`task${todo.isComplete ? " done" : ""}`} key={todo.id}>
+                <input className="check" type="checkbox" checked={!!todo.isComplete}
+                  onChange={() => updateCompleted(todo)} aria-label={`Mark "${todo.name}" as done`} />
+                <span className="task-name">{todo.name}</span>
+                <button className="btn-delete" onClick={() => deleteTodo(todo.id)} aria-label={`Delete "${todo.name}"`}>
+                  <TrashIcon />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </main>
   );
 }
 

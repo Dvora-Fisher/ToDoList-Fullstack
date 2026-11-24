@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import service from './service.js';
+import { Brand } from './ui.js';
 
 // Login page and Register page (switches between the two)
 function Auth({ onLogin }) {
@@ -7,10 +8,12 @@ function Auth({ onLogin }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+    setBusy(true);
     try {
       if (isRegister)
         await service.register(username, password);
@@ -23,6 +26,8 @@ function Auth({ onLogin }) {
       else if (status === 409) setError("Username already exists");
       else if (status === 400) setError("Please fill in username and password");
       else setError("Something went wrong, please try again");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -31,33 +36,41 @@ function Auth({ onLogin }) {
     setError("");
   }
 
-  // .footer in index.css has an absolute ::before layer that covers its content,
-  // so the buttons need position + zIndex to be clickable
-  const btn = { position: "relative", zIndex: 1, cursor: "pointer", padding: "4px 10px",
-    border: "1px solid #ccc", borderRadius: 3 };
-
   return (
-    <section className="todoapp">
-      <header className="header">
-        <h1>{isRegister ? "register" : "login"}</h1>
+    <main className="shell auth">
+      <Brand />
+      <section className="card">
+        <h1>{isRegister ? "Create your account" : "Welcome back"}</h1>
+        <p className="subtitle">
+          {isRegister ? "Start organizing your day in seconds." : "Log in to see your tasks."}
+        </p>
+
         <form onSubmit={handleSubmit}>
-          <input className="new-todo" placeholder="Username" value={username}
-            onChange={(e) => setUsername(e.target.value)} autoFocus />
-          <input className="new-todo" type="password" placeholder="Password" value={password}
-            onChange={(e) => setPassword(e.target.value)} />
-          <button type="submit" style={{ display: "none" }} />
+          {error && <p className="error" role="alert">{error}</p>}
+          <label className="field">
+            <span>Username</span>
+            <input className="input" placeholder="Your username" value={username} autoComplete="username"
+              onChange={(e) => setUsername(e.target.value)} autoFocus />
+          </label>
+          <label className="field">
+            <span>Password</span>
+            <input className="input" type="password" placeholder="••••••••" value={password}
+              autoComplete={isRegister ? "new-password" : "current-password"}
+              onChange={(e) => setPassword(e.target.value)} />
+          </label>
+          <button className="btn-primary" type="submit" disabled={busy}>
+            {busy ? "Please wait…" : isRegister ? "Create account" : "Log in"}
+          </button>
         </form>
-      </header>
-      <footer className="footer" style={{ display: "block", textAlign: "center", height: "auto" }}>
-        {error && <div style={{ position: "relative", zIndex: 1, color: "#c0392b", marginBottom: 8 }}>{error}</div>}
-        <button type="button" onClick={handleSubmit} style={{ ...btn, marginRight: 16 }}>
-          {isRegister ? "Create account" : "Log in"}
-        </button>
-        <button type="button" onClick={switchMode} style={{ ...btn, border: 0, textDecoration: "underline" }}>
-          {isRegister ? "Already have an account? Log in" : "New user? Register"}
-        </button>
-      </footer>
-    </section>
+
+        <p className="switch">
+          {isRegister ? "Already have an account? " : "New here? "}
+          <button type="button" className="link" onClick={switchMode}>
+            {isRegister ? "Log in" : "Create an account"}
+          </button>
+        </p>
+      </section>
+    </main>
   );
 }
 
